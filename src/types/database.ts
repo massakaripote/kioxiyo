@@ -55,6 +55,5 @@ export interface StudyLog {
 export interface UserSettings {
   theme: 'light' | 'dark' | 'system';
   isSwipeReversed: boolean; // 左右反転
-  authorName: string;
 }
 

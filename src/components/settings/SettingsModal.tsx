@@ -22,19 +22,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateSettings,
   onReloadInitialData,
 }) => {
-  const [authorNameInput, setAuthorNameInput] = useState(settings.authorName || '');
-  const [savedNotice, setSavedNotice] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [reloadNotice, setReloadNotice] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleSaveAuthorName = (e: React.FormEvent) => {
-    e.preventDefault();
-    onUpdateSettings({ authorName: authorNameInput.trim() });
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2000);
-  };
 
   const handleReloadClick = async () => {
     const ok = window.confirm(
@@ -73,31 +64,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* コンテンツ */}
         <div className="p-5 space-y-5 overflow-y-auto max-h-[80vh]">
-          {/* 投稿者名設定 */}
-          <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
-              投稿者名（問題共有・時事問題での表示名）
-            </label>
-            <form onSubmit={handleSaveAuthorName} className="flex gap-2">
-              <input
-                type="text"
-                value={authorNameInput}
-                onChange={(e) => setAuthorNameInput(e.target.value)}
-                placeholder="例: 高校生A, レキシー"
-                className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition"
-              >
-                保存
-              </button>
-            </form>
-            {savedNotice && (
-              <p className="text-xs text-emerald-600 font-bold mt-1">保存しました！</p>
-            )}
-          </div>
-
           {/* テーマ設定 */}
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">

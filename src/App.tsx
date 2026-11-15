@@ -430,7 +430,6 @@ export function App() {
       <CommunityView
         isOpen={isCommunityOpen}
         onClose={() => setIsCommunityOpen(false)}
-        authorName={settings.authorName}
         onCopiedSuccess={refreshAllData}
         defaultTab={communityDefaultTab}
       />

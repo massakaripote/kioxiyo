@@ -6,7 +6,6 @@ const SETTINGS_KEY = 'kioxiyo_user_settings';
 const DEFAULT_SETTINGS: UserSettings = {
   theme: 'system',
   isSwipeReversed: false,
-  authorName: '',
 };
 
 export function useSettings() {
@@ -43,6 +42,5 @@ export function useSettings() {
     updateSetting,
     updateSettings,
     setIsSwipeReversed: (reversed: boolean) => updateSetting('isSwipeReversed', reversed),
-    setAuthorName: (name: string) => updateSetting('authorName', name),
   };
 }

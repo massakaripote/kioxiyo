@@ -44,9 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="font-extrabold tracking-wider text-xl sm:text-2xl text-slate-900 dark:text-white font-mono group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               KIOXIYO
             </span>
-            <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800">
-              高校暗記
-            </span>
+
           </button>
         </div>
 

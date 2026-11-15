@@ -36,7 +36,6 @@ import {
 interface CommunityViewProps {
   isOpen: boolean;
   onClose: () => void;
-  authorName: string;
   onCopiedSuccess: () => void;
   defaultTab?: 'problemSets' | 'currentAffairs';
 }
@@ -44,7 +43,6 @@ interface CommunityViewProps {
 export const CommunityView: React.FC<CommunityViewProps> = ({
   isOpen,
   onClose,
-  authorName,
   onCopiedSuccess,
   defaultTab = 'problemSets',
 }) => {
@@ -176,7 +174,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
           subject: postSubject,
           unit: postUnit || '全般',
           questions: questionsToPost,
-          authorName: authorName || '名無しの高校生',
+          authorName: '匿名',
           isPublic: postIsPublic,
         },
         user
@@ -211,7 +209,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
           answer: affairAnswer.trim(),
           explanation: affairExplanation.trim(),
           category: affairCategory,
-          authorName: authorName || '名無しの高校生',
+          authorName: '匿名',
         },
         user
       );
@@ -483,8 +481,6 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                             </p>
                           )}
                           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-2">
-                            <span>投稿者: {set.authorName}</span>
-                            <span>・</span>
                             <span>{set.questions.length}問 収録</span>
                           </div>
                         </div>
@@ -606,7 +602,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                             Q. {post.question}
                           </div>
                           <div className="text-[10px] text-slate-400 mt-1">
-                            投稿者: {post.authorName} ・ {new Date(post.createdAt).toLocaleDateString()}
+                            {new Date(post.createdAt).toLocaleDateString()}
                           </div>
 
                           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
