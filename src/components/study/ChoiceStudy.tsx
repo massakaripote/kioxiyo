@@ -84,11 +84,11 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
     const threshold = 50;
     if (info.offset.x > threshold) {
       // 右
-      handleConfirmAnswer(!isSwipeReversed);
+      handleConfirmAnswer(isSwipeReversed);
       animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 });
     } else if (info.offset.x < -threshold) {
       // 左
-      handleConfirmAnswer(isSwipeReversed);
+      handleConfirmAnswer(!isSwipeReversed);
       animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 });
     } else {
       // 閾値未満でドラッグ終了した場合は中央へスプリングで戻す
@@ -135,6 +135,9 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
         <div className="mt-2 text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed">
           <span className="text-blue-600 dark:text-blue-400 font-black mr-1">Q.</span>
           {currentQuestion.question}
+        </div>
+        <div className="mt-1.5 text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500">
+          ID: {currentQuestion.id}
         </div>
       </div>
 
@@ -200,13 +203,13 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
                 <div className="flex items-center justify-between pointer-events-none">
                   <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
                     <ArrowLeft className="w-4 h-4 text-slate-400" />
-                    <span>{isSwipeReversed ? '自信ありで確定' : '自信なしで確定'}</span>
+                    <span>{isSwipeReversed ? '自信なしで確定' : '自信ありで確定'}</span>
                   </div>
                   <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/70">
                     スワイプ
                   </span>
                   <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
-                    <span>{isSwipeReversed ? '自信なしで確定' : '自信ありで確定'}</span>
+                    <span>{isSwipeReversed ? '自信ありで確定' : '自信なしで確定'}</span>
                     <ArrowRight className="w-4 h-4 text-slate-400" />
                   </div>
                 </div>

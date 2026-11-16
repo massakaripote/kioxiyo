@@ -3,12 +3,8 @@ import type { Question, Unit } from '@/types/database';
 export const INITIAL_UNITS: Unit[] = [
   // 歴史
   { id: 'hist-french-rev', subject: '歴史', name: 'フランス革命', orderIndex: 1 },
-  { id: 'hist-industrial-rev', subject: '歴史', name: '産業革命', orderIndex: 2 },
-  { id: 'hist-ww1', subject: '歴史', name: '第一次世界大戦', orderIndex: 3 },
   // 地理
   { id: 'geo-climate', subject: '地理', name: '世界の気候と環境', orderIndex: 1 },
-  { id: 'geo-industry', subject: '地理', name: '農林水産業とエネルギー', orderIndex: 2 },
-  { id: 'geo-city', subject: '地理', name: '都市と人口問題', orderIndex: 3 },
   // 公共
   { id: 'civ-elections_and_perks', subject: '公共', name: '選挙と政党', orderIndex: 1 },
   { id: 'PP_and_PO', subject: '公共', name: '政治参加と世論', orderIndex: 2 },
@@ -18,8 +14,6 @@ export const INITIAL_UNITS: Unit[] = [
   { id: 'How_markets_work', subject: '公共', name: '市場のしくみ', orderIndex: 6 },
   // 地学
   { id: 'earth-plate', subject: '地学', name: 'プレートテクトニクスと地震', orderIndex: 1 },
-  { id: 'earth-volcano', subject: '地学', name: '火山と火成岩', orderIndex: 2 },
-  { id: 'earth-atmosphere', subject: '地学', name: '大気と海洋の循環', orderIndex: 3 },
 ];
 
 export const INITIAL_QUESTIONS: Question[] = [
@@ -618,8 +612,8 @@ export const INITIAL_QUESTIONS: Question[] = [
     subject: '公共',
     unit: '政治機構と国民生活',
     question: '国民の代表者が権力を行使する政治制度を何というか。',
-    answer: '代議制民主主義',
-    choices: ['代議制民主主義', '直接民主主義', '絶対君主制', '一党制'],
+    answer: '代表民主制',
+    choices: ['代表民主制', '直接民主主義', '絶対君主制', '一党制'],
     explanation: '代議制民主主義では、国民が選挙で代表者を選び、その代表者が政治を行う。',
     keywords: ['代議制民主主義', '国民の代表者'],
     type: ['swipe', 'multiple_choice', 'written'],
@@ -1059,7 +1053,7 @@ export const INITIAL_QUESTIONS: Question[] = [
     id: 'civ-074',
     subject: '公共',
     unit: '政治機構と国民生活',
-    question: '憲法第32条で国民に保障されている、裁判を受ける権利を何というか。',
+    question: '憲法第32条で国民に保障されている国民の基本的人権は何か。',
     answer: '裁判を受ける権利',
     choices: ['裁判を受ける権利', '表現の自由', '生存権', '財産権'],
     explanation: '憲法第32条は、何人も裁判所において裁判を受ける権利を奪われないことを保障している。',
@@ -1436,7 +1430,7 @@ export const INITIAL_QUESTIONS: Question[] = [
     id: 'civ-103',
     subject: '公共',
     unit: '経済社会の形成と変容',
-    question: '資本主義経済において、機械や原材料などの生産手段を私有することを何というか。',
+    question: 'モノを生産するための手段を、個人や私企業が所有することを何というか。',
     answer: '生産手段の私有',
     choices: ['生産手段の私有', '生産手段の国有', '計画的分配', '共同所有'],
     explanation: '資本主義経済では、生産手段の私有が認められ、個人や企業が生産活動を行う。',
@@ -1449,7 +1443,7 @@ export const INITIAL_QUESTIONS: Question[] = [
     id: 'civ-104',
     subject: '公共',
     unit: '経済社会の形成と変容',
-    question: '資本主義経済において、労働力が商品として扱われることを何というか。',
+    question: '市場で人間の労働力が商品として売買されるようになることをなんというか。',
     answer: '労働力の商品化',
     choices: ['労働力の商品化', '生産手段の国有', '資本の集中', '市場の独占'],
     explanation: '資本主義経済では、労働者は労働力を提供し、その対価として賃金を受け取る。',
@@ -1501,7 +1495,7 @@ export const INITIAL_QUESTIONS: Question[] = [
     id: 'civ-108',
     subject: '公共',
     unit: '経済社会の形成と変容',
-    question: '少数の大企業が市場を支配し、競争が制限される状態を何というか。',
+    question: '特定の一つの企業が市場を支配し、競争が制限される状態を何というか。',
     answer: '独占',
     choices: ['独占', '完全競争', '市場均衡', '自由放任'],
     explanation: '独占は、少数の企業が市場を支配する状態であり、価格や生産量を自由に決めやすくなる。',

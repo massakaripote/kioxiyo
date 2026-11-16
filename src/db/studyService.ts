@@ -190,12 +190,15 @@ export async function getQuestionsForStudy(params: {
 
     case 'all':
     default:
-      // 全問題
+      // 全問題：問題IDの昇順（自然順ソート）で出題
+      questions = [...questions].sort((a, b) =>
+        a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' })
+      );
       break;
   }
 
-  // ランダムモード以外でも、復習や全体の場合は適度に出題順をシャッフル可能
-  if (mode === 'review' || mode === 'all') {
+  // 復習モードの場合はシャッフル
+  if (mode === 'review') {
     questions = [...questions].sort(() => Math.random() - 0.5);
   }
 

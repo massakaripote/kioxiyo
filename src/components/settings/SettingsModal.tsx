@@ -106,7 +106,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>スワイプ操作の初期設定を左右反転にする</span>
             </label>
             <p className="text-[11px] text-slate-400 mt-1 pl-6">
-              左利きの方や、親指の届きやすさに合わせて通常「自信ナシ/間違い」の左を「自信アリ/正解」に入れ替えます。
+              利き手や操作の好みに合わせて、通常「左：自信アリ/正解」「右：自信ナシ/間違い」の配置を入れ替えます。
             </p>
           </div>
 

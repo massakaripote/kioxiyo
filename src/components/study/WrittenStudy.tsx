@@ -72,6 +72,9 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
           <span className="text-blue-600 dark:text-blue-400 font-black mr-1">Q.</span>
           {currentQuestion.question}
         </div>
+        <div className="mt-1.5 text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500">
+          ID: {currentQuestion.id}
+        </div>
       </div>
 
       {/* 入力エリア または 採点エリア */}

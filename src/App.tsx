@@ -145,34 +145,43 @@ export function App() {
 
   // 各問題の回答記録ハンドラ
   const handleQuestionAnswer = async (confidence: boolean, isCorrect: boolean, userAnswer?: string) => {
-    const q = studyQuestions[currentIndex];
+    // 実行時点での確実な問題を取得
+    const targetIndex = currentIndex;
+    const q = studyQuestions[targetIndex];
     if (!q) return;
 
-    const res = await recordAnswer({
+    // 次の問題へ即座に進める（またはリザルト画面へ）
+    const nextIndex = targetIndex + 1;
+    const isCompleted = nextIndex >= studyQuestions.length;
+
+    // IndexedDBへの記録を非同期で実行
+    recordAnswer({
       questionId: q.id,
       studyType,
       confidence,
       isCorrect,
       userAnswer,
+    }).then((res) => {
+      const resultItem: AnswerResultItem = {
+        question: q,
+        confidence,
+        isCorrect,
+        pointsBefore: res.pointsBefore,
+        pointsAfter: res.pointsAfter,
+      };
+
+      setStudyResults((prev) => {
+        const updated = [...prev, resultItem];
+        if (isCompleted && updated.length >= studyQuestions.length) {
+          setCurrentView('result');
+          refreshAllData();
+        }
+        return updated;
+      });
     });
 
-    const resultItem: AnswerResultItem = {
-      question: q,
-      confidence,
-      isCorrect,
-      pointsBefore: res.pointsBefore,
-      pointsAfter: res.pointsAfter,
-    };
-
-    const newResults = [...studyResults, resultItem];
-    setStudyResults(newResults);
-
-    if (currentIndex + 1 < studyQuestions.length) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      // 全問終了 -> リザルト画面へ
-      setCurrentView('result');
-      refreshAllData();
+    if (!isCompleted) {
+      setCurrentIndex(nextIndex);
     }
   };
 
@@ -241,7 +250,7 @@ export function App() {
       />
 
       {/* メインコンテンツ */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-4 pb-12">
+      <main className={`flex-1 max-w-4xl w-full mx-auto px-3 sm:px-4 ${currentView.startsWith('study_') ? 'pb-2' : 'pb-12'}`}>
         {currentView === 'home' && (
           <div>
             {/* 上部サマリーカード（今日10問 / 正答率70% / 復習待ち3問） */}
@@ -298,7 +307,7 @@ export function App() {
                     <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
                       問題集の共有コミュニティ
                     </h4>
-                    <p className="text-xs text-slate-400">全国の高校生が作成した問題集を探す</p>
+                    <p className="text-xs text-slate-400">他の人が作成した問題集を探す</p>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg">

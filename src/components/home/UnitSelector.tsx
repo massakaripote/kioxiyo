@@ -19,17 +19,17 @@ interface UnitSelectorProps {
 
 const STUDY_MODE_OPTIONS: { id: StudyMode; label: string; desc: string }[] = [
   { id: 'all', label: '全問題', desc: '選択単元の全問題を対象' },
-  { id: 'review', label: '復習（忘却曲線）', desc: '復習期日が来ている問題' },
-  { id: 'weak', label: '苦手中心（定着度低）', desc: '間違えやすい問題・習得前' },
+  { id: 'review', label: '復習', desc: '復習期日が来ている問題' },
+  { id: 'weak', label: '苦手中心', desc: '間違えやすい問題・習得前' },
   { id: 'unseen', label: '未出題のみ', desc: '一度も解いていない問題' },
   { id: 'favorite', label: 'お気に入り', desc: '★マークを付けた問題' },
   { id: 'random', label: 'ランダム出題', desc: '順序をシャッフルして出題' },
 ];
 
 const STUDY_TYPE_OPTIONS: { id: QuestionStudyType; label: string; desc: string }[] = [
-  { id: 'swipe', label: 'フラッシュ (カードスワイプ)', desc: '表裏をめくってテンポよく自己判定' },
+  { id: 'swipe', label: 'フラッシュ (カードスワイプ)', desc: '横にスワイプして素早く学習' },
   { id: 'multiple_choice', label: '四択式', desc: '4つの選択肢から正解を選ぶ' },
-  { id: 'written', label: '記述式 (タイピング/自己採点)', desc: '答えを入力または思い浮かべて確認' },
+  { id: 'written', label: '記述式 (タイピング/自己採点)', desc: '答えを入力して自己採点' },
 ];
 
 export const UnitSelector: React.FC<UnitSelectorProps> = ({
@@ -108,8 +108,8 @@ export const UnitSelector: React.FC<UnitSelectorProps> = ({
             <button
               onClick={() => onSelectUnit('すべて')}
               className={`w-full p-2.5 rounded-xl text-left text-sm font-semibold transition flex items-center justify-between border ${selectedUnit === 'すべて'
-                  ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300'
-                  : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300'
+                : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
             >
               <span>{subject} 全単元</span>
@@ -121,8 +121,8 @@ export const UnitSelector: React.FC<UnitSelectorProps> = ({
                 key={unit.id}
                 onClick={() => onSelectUnit(unit.name)}
                 className={`w-full p-2.5 rounded-xl text-left text-sm font-semibold transition flex items-center justify-between border ${selectedUnit === unit.name
-                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300'
-                    : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-700 dark:text-blue-300'
+                  : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
               >
                 <span className="truncate">{unit.name}</span>
@@ -207,8 +207,8 @@ export const UnitSelector: React.FC<UnitSelectorProps> = ({
               onClick={onStartStudy}
               disabled={availableCount === 0}
               className={`flex-1 py-3 px-4 rounded-2xl text-white font-extrabold text-base flex items-center justify-center gap-2 shadow-lg transition ${availableCount > 0
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] shadow-blue-500/25'
-                  : 'bg-slate-400 cursor-not-allowed opacity-60'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] shadow-blue-500/25'
+                : 'bg-slate-400 cursor-not-allowed opacity-60'
                 }`}
             >
               <Play className="w-5 h-5 fill-current" />
