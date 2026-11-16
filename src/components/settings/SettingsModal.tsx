@@ -29,7 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleReloadClick = async () => {
     const ok = window.confirm(
-      '初期問題データを最新の状態ですべて再読み込みしますか？\n（コード上で更新した問題や選択肢が反映されます）'
+      '初期問題データを最新の状態に更新（差分同期）しますか？\n（学習履歴やマスター状況を保持したまま、変更・追加された問題のみ反映されます）'
     );
     if (!ok) return;
 
@@ -124,10 +124,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* 問題データの再読み込み */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              問題データの再読み込み
+              問題データの差分更新
             </label>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2.5">
-              initialData.ts などのソースコードで編集した問題文・選択肢・解答をアプリ内に最新反映します。※達成度データなどは消去されます。
+              initialData.ts などのソースコードで編集した問題文や追加した単元・問題を最新反映します。※学習履歴やマスター状況はそのまま維持されます。
             </p>
             <button
               type="button"
@@ -136,12 +136,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isReloading ? 'animate-spin text-blue-600' : ''}`} />
-              <span>{isReloading ? '再読み込み中...' : '問題をすべて読み込み直す'}</span>
+              <span>{isReloading ? '同期中...' : '最新の問題データを差分更新する'}</span>
             </button>
             {reloadNotice && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-2 flex items-center gap-1 justify-center">
                 <Check className="w-4 h-4" />
-                <span>最新の問題データを正常に再読み込みしました！</span>
+                <span>学習履歴を保持したまま、問題データを最新化しました！</span>
               </p>
             )}
           </div>

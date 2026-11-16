@@ -20,28 +20,36 @@ export async function initializeDatabase(): Promise<void> {
 }
 
 /**
- * 初期問題・単元データを最新のコード定義から強制的に再読み込み（リロード）する
+ * 初期問題・単元データを最新のコード定義から差分同期（スマートリロード）する
+ * 学習履歴や獲得ポイント、マスター状態は維持したまま、問題文や選択肢の更新、新規問題の追加のみ反映します。
  */
 export async function reloadInitialData(): Promise<void> {
-  // 既存の単元・問題・習得状況をクリアして最新の初期データを投入
   await db.transaction('rw', db.questions, db.units, db.masteryStats, async () => {
-    await db.questions.clear();
-    await db.units.clear();
-    await db.masteryStats.clear();
+    // 1. 単元データを最新化（追加・更新）
+    await db.units.bulkPut(INITIAL_UNITS);
 
-    await db.units.bulkAdd(INITIAL_UNITS);
-    await db.questions.bulkAdd(INITIAL_QUESTIONS);
+    // 2. 問題データを最新化（問題文・解説・選択肢などを上書き更新、新規IDなら追加）
+    await db.questions.bulkPut(INITIAL_QUESTIONS);
 
-    const initialStats: MasteryStat[] = INITIAL_QUESTIONS.map((q) => ({
-      questionId: q.id,
-      points: 0,
-      status: 'unseen',
-      timesAsked: 0,
-      correctCount: 0,
-      incorrectCount: 0,
-      isWeak: false,
-    }));
-    await db.masteryStats.bulkAdd(initialStats);
+    // 3. 既存の習得ステータスを取得し、まだステータスが存在しない「新規問題」のみ初期レコードを追加
+    const existingStats = await db.masteryStats.toArray();
+    const existingStatIds = new Set(existingStats.map((s) => s.questionId));
+
+    const newStats: MasteryStat[] = INITIAL_QUESTIONS.filter((q) => !existingStatIds.has(q.id)).map(
+      (q) => ({
+        questionId: q.id,
+        points: 0,
+        status: 'unseen',
+        timesAsked: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        isWeak: false,
+      })
+    );
+
+    if (newStats.length > 0) {
+      await db.masteryStats.bulkAdd(newStats);
+    }
   });
 }
 
