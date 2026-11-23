@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Question } from '@/types/database';
-import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion';
-import { Star, Undo2, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Star, Undo2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Check, HelpCircle } from 'lucide-react';
+import { DataTableDisplay } from './DataTableDisplay';
+import { CalculationExplanation } from './CalculationExplanation';
+import { SequenceReorder } from './SequenceReorder';
 
 interface ChoiceStudyProps {
   questions: Question[];
@@ -9,6 +12,7 @@ interface ChoiceStudyProps {
   isSwipeReversed: boolean;
   onToggleReverse: () => void;
   onAnswer: (confidence: boolean, isCorrect: boolean, selectedChoice: string) => void;
+  onPrev?: () => void;
   onToggleFavorite: (questionId: string) => void;
   onExit: () => void;
 }
@@ -19,13 +23,17 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
   isSwipeReversed,
   onToggleReverse,
   onAnswer,
+  onPrev,
   onToggleFavorite,
   onExit,
 }) => {
   const currentQuestion = questions[currentIndex];
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [sequenceOrder, setSequenceOrder] = useState<string[]>([]);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
   const [lastConfidence, setLastConfidence] = useState<boolean>(true);
+
+  const isSequence = currentQuestion?.format === 'sequence' && !!currentQuestion.sequence;
 
   // 選択肢のシャッフル（Fisher-Yatesシャッフルで問題ごとに毎回ランダムに並び替え）
   const shuffledChoices = useMemo(() => {
@@ -47,78 +55,69 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
     return raw;
   }, [currentQuestion?.id, currentIndex]);
 
-  // スワイプ操作用
-  const x = useMotionValue(0);
-
-  // 問題切り替え時や回答状態リセット時に位置をゼロへ戻す
+  // 問題切り替え時に回答状態をリセット
   useEffect(() => {
-    x.set(0);
     setSelectedChoice(null);
+    setSequenceOrder([]);
     setIsAnswered(false);
-  }, [currentIndex, x]);
+  }, [currentIndex]);
 
   if (!currentQuestion) return null;
 
   const choices = shuffledChoices;
 
+  // 正誤判定
+  const isSequenceCorrect = isSequence && currentQuestion.sequence?.correctOrder
+    ? currentQuestion.sequence.correctOrder.length === sequenceOrder.length &&
+    currentQuestion.sequence.correctOrder.every((id, idx) => id === sequenceOrder[idx])
+    : false;
+
+  const isSelectedCorrect = isSequence
+    ? isSequenceCorrect
+    : selectedChoice?.trim() === currentQuestion.answer.trim();
+
+  const canConfirm = isSequence ? sequenceOrder.length > 0 : !!selectedChoice;
+
   const handleConfirmAnswer = (confidence: boolean) => {
-    if (!selectedChoice || isAnswered) return;
+    if (!canConfirm || isAnswered) return;
     setLastConfidence(confidence);
     setIsAnswered(true);
   };
 
   const handleNext = () => {
-    if (!selectedChoice) return;
-    const isCorrect = selectedChoice.trim() === currentQuestion.answer.trim();
-    onAnswer(lastConfidence, isCorrect, selectedChoice);
+    if (!canConfirm) return;
+    const answerSummary = isSequence ? sequenceOrder.join(' → ') : selectedChoice || '';
+    onAnswer(lastConfidence, isSelectedCorrect, answerSummary);
     setSelectedChoice(null);
+    setSequenceOrder([]);
     setIsAnswered(false);
-    x.set(0);
   };
-
-  const handleDragEnd = (_e: any, info: PanInfo) => {
-    if (isAnswered || !selectedChoice) {
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-      return;
-    }
-    const threshold = 50;
-    if (info.offset.x > threshold) {
-      // 右
-      handleConfirmAnswer(isSwipeReversed);
-      animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 });
-    } else if (info.offset.x < -threshold) {
-      // 左
-      handleConfirmAnswer(!isSwipeReversed);
-      animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 });
-    } else {
-      // 閾値未満でドラッグ終了した場合は中央へスプリングで戻す
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-    }
-  };
-
-  const isSelectedCorrect = selectedChoice?.trim() === currentQuestion.answer.trim();
 
   return (
     <div className="flex flex-col items-center justify-between min-h-[calc(100vh-80px)] max-w-lg mx-auto px-4 py-3">
       {/* 上部ステータスバー */}
       <div className="w-full flex items-center justify-between text-sm font-semibold text-slate-500 mb-2">
         <button
-          onClick={onExit}
-          className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200"
+          onClick={onPrev}
+          disabled={currentIndex === 0}
+          className={`flex items-center gap-1 transition ${currentIndex === 0
+              ? 'opacity-30 cursor-not-allowed text-slate-400'
+              : 'hover:text-slate-800 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400'
+            }`}
+          title="前の問題に戻る"
         >
-          <Undo2 className="w-4 h-4" />
-          <span>中断</span>
+          <ArrowLeft className="w-4 h-4" />
+          <span>前へ</span>
         </button>
         <span className="font-mono text-base font-bold text-slate-800 dark:text-slate-200">
           {currentIndex + 1} / {questions.length}
         </span>
         <button
           onClick={() => onToggleFavorite(currentQuestion.id)}
-          className={`p-1.5 rounded-full transition ${
-            currentQuestion.isFavorite
-              ? 'text-amber-500 fill-amber-500'
-              : 'text-slate-400 hover:text-slate-600'
-          }`}
+          className={`p-1.5 rounded-full transition ${currentQuestion.isFavorite
+            ? 'text-amber-500 fill-amber-500'
+            : 'text-slate-400 hover:text-slate-600'
+            }`}
         >
           <Star className={`w-5 h-5 ${currentQuestion.isFavorite ? 'fill-current' : ''}`} />
         </button>
@@ -139,81 +138,122 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
         <div className="mt-1.5 text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500">
           ID: {currentQuestion.id}
         </div>
+
+        {/* 資料・表（data_analysis形式など） */}
+        {currentQuestion.dataTable && (
+          <DataTableDisplay dataTable={currentQuestion.dataTable} />
+        )}
       </div>
 
-      {/* 4択選択肢グリッド */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 my-2">
-        {choices.map((choice, idx) => {
-          const isChosen = selectedChoice === choice;
-          const isCorrect = choice.trim() === currentQuestion.answer.trim();
+      {/* 回答エリア：並べ替え形式 または 4択グリッド */}
+      {isSequence && currentQuestion.sequence ? (
+        <div className="w-full my-2">
+          <SequenceReorder
+            sequence={currentQuestion.sequence}
+            isAnswered={isAnswered}
+            onOrderChange={setSequenceOrder}
+          />
+        </div>
+      ) : (
+        /* 4択選択肢グリッド */
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 my-2">
+          {choices.map((choice, idx) => {
+            const isChosen = selectedChoice === choice;
+            const isCorrect = choice.trim() === currentQuestion.answer.trim();
 
-          let btnStyle = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-400';
+            let btnStyle = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-400';
 
-          if (isAnswered) {
-            if (isCorrect) {
-              btnStyle = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 ring-2 ring-emerald-500/30';
-            } else if (isChosen && !isCorrect) {
-              btnStyle = 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200';
-            } else {
-              btnStyle = 'opacity-40 border-slate-200 dark:border-slate-800';
+            if (isAnswered) {
+              if (isCorrect) {
+                btnStyle = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 ring-2 ring-emerald-500/30';
+              } else if (isChosen && !isCorrect) {
+                btnStyle = 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200';
+              } else {
+                btnStyle = 'opacity-40 border-slate-200 dark:border-slate-800';
+              }
+            } else if (isChosen) {
+              btnStyle = 'border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 ring-2 ring-blue-500/30';
             }
-          } else if (isChosen) {
-            btnStyle = 'border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 ring-2 ring-blue-500/30';
-          }
 
-          return (
-            <button
-              key={idx}
-              disabled={isAnswered}
-              onClick={() => setSelectedChoice(choice)}
-              className={`p-3.5 rounded-2xl border-2 text-left font-bold text-sm sm:text-base transition flex items-center justify-between ${btnStyle}`}
-            >
-              <span>{choice}</span>
-              {isAnswered && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 ml-1" />}
-              {isAnswered && isChosen && !isCorrect && <XCircle className="w-5 h-5 text-rose-600 shrink-0 ml-1" />}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={idx}
+                disabled={isAnswered}
+                onClick={() => setSelectedChoice(choice)}
+                className={`p-3.5 rounded-2xl border-2 text-left font-bold text-sm sm:text-base transition flex items-center justify-between ${btnStyle}`}
+              >
+                <span>{choice}</span>
+                {isAnswered && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 ml-1" />}
+                {isAnswered && isChosen && !isCorrect && <XCircle className="w-5 h-5 text-rose-600 shrink-0 ml-1" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 確定エリア / 結果解説エリア */}
       <div className="w-full my-2">
         {!isAnswered ? (
           <div>
             <div className="text-center text-xs font-semibold text-slate-400 mb-2">
-              {selectedChoice
-                ? '選択肢を選びました。バーを左右にスワイプして自信度を確定してください'
-                : '回答の選択肢をタップしてください'}
+              {isSequence
+                ? '順番を並び替えたら、自信度を選択して回答を確定してください'
+                : selectedChoice
+                  ? '選択肢を選んだら、自信度を選択して回答を確定してください'
+                  : '回答の選択肢をタップしてください'}
             </div>
 
-            {/* スワイプ可能な確定バー（親要素のoverflow-hiddenを削除し、左右スワイプ時にボタン全体が枠外へスムーズに移動） */}
-            <div className="relative w-full py-1">
-              <motion.div
-                style={{ x }}
-                drag={selectedChoice ? 'x' : false}
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.4}
-                onDragEnd={handleDragEnd}
-                className={`py-5 px-4 rounded-2xl border-2 select-none shadow-md transition-colors ${
-                  selectedChoice
-                    ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 dark:from-slate-800 dark:via-indigo-950/40 dark:to-slate-800 border-indigo-400 cursor-grab active:cursor-grabbing ring-2 ring-indigo-400/20'
-                    : 'bg-slate-100 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 opacity-60'
-                }`}
+            {/* 左右分割ボタン */}
+            <div className="grid grid-cols-2 gap-2.5 py-1">
+              {/* 左ボタン */}
+              <button
+                type="button"
+                onClick={() => handleConfirmAnswer(isSwipeReversed ? true : false)}
+                disabled={!canConfirm}
+                className={`py-4 px-3 rounded-2xl border-2 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all select-none ${canConfirm
+                  ? isSwipeReversed
+                    ? 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white shadow-blue-500/20 active:scale-[0.98]'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 active:scale-[0.98]'
+                  : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400 opacity-50 cursor-not-allowed'
+                  }`}
               >
-                <div className="flex items-center justify-between pointer-events-none">
-                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
-                    <ArrowLeft className="w-4 h-4 text-slate-400" />
-                    <span>{isSwipeReversed ? '自信なしで確定' : '自信ありで確定'}</span>
-                  </div>
-                  <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/70">
-                    スワイプ
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
-                    <span>{isSwipeReversed ? '自信ありで確定' : '自信なしで確定'}</span>
-                    <ArrowRight className="w-4 h-4 text-slate-400" />
-                  </div>
-                </div>
-              </motion.div>
+                {isSwipeReversed ? (
+                  <>
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>自信アリ</span>
+                  </>
+                ) : (
+                  <>
+                    <HelpCircle className="w-4 h-4" />
+                    <span>自信ナシ</span>
+                  </>
+                )}
+              </button>
+
+              {/* 右ボタン */}
+              <button
+                type="button"
+                onClick={() => handleConfirmAnswer(isSwipeReversed ? false : true)}
+                disabled={!canConfirm}
+                className={`py-4 px-3 rounded-2xl border-2 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all select-none ${canConfirm
+                  ? isSwipeReversed
+                    ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 active:scale-[0.98]'
+                    : 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white shadow-blue-500/20 active:scale-[0.98]'
+                  : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400 opacity-50 cursor-not-allowed'
+                  }`}
+              >
+                {isSwipeReversed ? (
+                  <>
+                    <HelpCircle className="w-4 h-4" />
+                    <span>自信ナシ</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>自信アリ</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         ) : (
@@ -246,9 +286,14 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
             </div>
 
             {currentQuestion.explanation && (
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-2 mb-3">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-2 mb-2">
                 {currentQuestion.explanation}
               </p>
+            )}
+
+            {/* 計算問題の公式・手順解説 */}
+            {currentQuestion.calculation && (
+              <CalculationExplanation calculation={currentQuestion.calculation} className="mb-3" />
             )}
 
             <button
@@ -262,17 +307,30 @@ export const ChoiceStudy: React.FC<ChoiceStudyProps> = ({
         )}
       </div>
 
-      {/* 左右反転設定 */}
-      <div className="w-full flex items-center justify-center gap-4 py-1">
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={isSwipeReversed}
-            onChange={onToggleReverse}
-            className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-          />
-          <span>左右反転</span>
-        </label>
+      {/* 画面下部フッター：中断（左） & 左右反転（中央） */}
+      <div className="w-full relative flex items-center justify-between py-2 mt-auto border-t border-slate-100 dark:border-slate-800/60">
+        <button
+          onClick={onExit}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition z-10"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+          <span>中断</span>
+        </button>
+
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto">
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isSwipeReversed}
+              onChange={onToggleReverse}
+              className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+            />
+            <span>左右反転</span>
+          </label>
+        </div>
+
+        {/* 右側のスペーサー（中央揃えのバランス用） */}
+        <div className="w-16" />
       </div>
     </div>
   );

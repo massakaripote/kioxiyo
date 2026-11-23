@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import yaml from 'js-yaml';
 import { db } from '@/db';
-import type { Question, SubjectType, QuestionStudyType } from '@/types/database';
+import type { Question, SubjectType, QuestionStudyType, QuestionFormat } from '@/types/database';
 import { X, Upload, Download, Check, AlertTriangle, FileText, Database, Copy, CheckCheck } from 'lucide-react';
 
 interface ImportExportModalProps {
@@ -17,37 +17,76 @@ interface ParsedUnitGroup {
 }
 
 // ── AIプロンプトテンプレート ──
-// ここを編集すれば「AIプロンプトをコピー」ボタンで
-// クリップボードにコピーされるテキストが変わります。
-const AI_PROMPT_TEMPLATE = `- subject: (教科名：地理 / 歴史 / 公共 / 地学 のうちどれか)
-  unit: (単元名やテーマを記述)
+const AI_PROMPT_TEMPLATE = `# KIOXIYO 問題生成用プロンプト
+
+以下のYAMLフォーマットに従って問題を作成し、YAMLのみを出力してください。
+
+## formatの種類
+- knowledge: 通常の知識・用語問題（省略時のデフォルト）
+- calculation: 数値計算問題 (calculationオブジェクト必須)
+- sequence: 順序・並べ替え問題 (sequenceオブジェクト必須、choice形式で出題)
+- data_analysis: 資料・表の読み取り問題 (dataTableオブジェクト必須)
+
+## 出題方式 (type)
+- 指定なしの場合は [swipe, choice, writing]（スワイプ、四択、記述）のすべてに対応します。
+- 正誤判定など記述が不要な場合は type: [swipe, choice] を明示してください。
+- sequence形式は自動的にchoice専用となります。
+
+## YAML形式の例
+- subject: 地学
+  unit: 恒星の性質
   questions:
-    - question: (ここに問題文を入力)
-      answer: (ここに正解となる答えを入力)
-      choices:
-        - (選択肢1：正解または不正解の選択肢)
-        - (選択肢2)
-        - (選択肢3)
-        - (選択肢4)
-      explanation: (ここに問題の解説や背景知識を入力)
-      keywords:
-        - (関連するキーワード1)
-        - (関連するキーワード2)
+    # 1. 知識問題 (format省略またはknowledge)
+    - format: knowledge
+      question: 恒星の明るさを表す数値を何というか。
+      answer: 等級
+      choices: [等級, 光年, 天文単位, 絶対温度]
+      explanation: 等級は恒星の明るさを表す数値である。
 
-    - question: (2問目以降も同様の形式で追加)
-      answer: (答え)
-      choices:
-        - (選択肢1)
-        - (選択肢2)
-        - (選択肢3)
-        - (選択肢4)
-      explanation: (解説)
-      keywords:
-        - (キーワード1)
+    # 2. 計算問題 (calculation)
+    - format: calculation
+      question: 2等星は7等星の何倍明るいか。
+      answer: 100倍
+      choices: [10倍, 25倍, 100倍, 1000倍]
+      explanation: 等級が5等級異なると、明るさは100倍異なる。
+      calculation:
+        numericAnswer: 100
+        unit: 倍
+        tolerance: 0
+        formula: 明るさの比 = 100^(等級差 / 5)
+        steps:
+          - 7 - 2 = 5
+          - 100^(5 / 5) = 100
 
-このYAML形式のテキストに則って問題を作成し、YAML形式のテキストを出力して。
-#留意点
-・anwerとchoicesが対応することを確認し、choicesの中にanswerと同じものが無いようなことが起こらないようにする。
+    # 3. 並べ替え問題 (sequence)
+    - format: sequence
+      question: 宇宙の誕生から恒星の形成までの出来事を古い順に並べよ。
+      answer: ビッグバン → 宇宙の晴れ上がり → 原始星の形成 → 恒星の誕生
+      explanation: 宇宙の誕生後、宇宙の晴れ上がりを経て、物質が集まり恒星が形成された。
+      sequence:
+        items:
+          - id: a
+            text: 宇宙の晴れ上がり
+          - id: b
+            text: 原始星の形成
+          - id: c
+            text: 恒星の誕生
+          - id: d
+            text: ビッグバン
+        correctOrder: [d, a, b, c]
+
+    # 4. 表・資料問題 (data_analysis)
+    - format: data_analysis
+      question: 本当に最も明るい恒星はどれか。
+      answer: P
+      choices: [P, Q, R, すべて同じ]
+      explanation: 絶対等級は恒星を10パーセクの距離に置いたときの見かけの等級であり、数値が小さいほど本来の明るさが大きい。
+      dataTable:
+        columns: [恒星, 見かけの等級, 絶対等級]
+        rows:
+          - [P, 1.0, -4.0]
+          - [Q, 1.0, 3.0]
+          - [R, 4.0, 4.0]
 `;
 
 export const ImportExportModal: React.FC<ImportExportModalProps> = ({
@@ -140,20 +179,107 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           );
         }
 
+        const validFormats: QuestionFormat[] = ['knowledge', 'calculation', 'sequence', 'data_analysis'];
+
         const questions: Question[] = g.questions.map((q: any, i: number) => {
           if (!q.question || !q.answer) {
             throw new Error(`「${g.unit}」の問題 #${i + 1} に question または answer がありません。`);
           }
+
+          // formatの判定（未指定はknowledge）
+          const format: QuestionFormat = q.format || 'knowledge';
+          if (!validFormats.includes(format)) {
+            throw new Error(
+              `「${g.unit}」の問題 #${i + 1} の format「${q.format}」は無効です。knowledge, calculation, sequence, data_analysis のいずれかを指定してください。`
+            );
+          }
+
+          // 各フォーマット固有の追加バリデーション
+          if (format === 'calculation') {
+            if (!q.calculation || typeof q.calculation !== 'object') {
+              throw new Error(`「${g.unit}」の計算問題 #${i + 1} に calculation オブジェクトが必要です。`);
+            }
+            if (typeof q.calculation.numericAnswer !== 'number' || isNaN(q.calculation.numericAnswer)) {
+              throw new Error(`「${g.unit}」の計算問題 #${i + 1} の calculation.numericAnswer に数値を指定してください。`);
+            }
+            if (typeof q.calculation.tolerance !== 'number' || isNaN(q.calculation.tolerance)) {
+              throw new Error(`「${g.unit}」の計算問題 #${i + 1} の calculation.tolerance に数値（許容誤差）を指定してください。`);
+            }
+          }
+
+          if (format === 'sequence') {
+            if (!q.sequence || typeof q.sequence !== 'object') {
+              throw new Error(`「${g.unit}」の並べ替え問題 #${i + 1} に sequence オブジェクトが必要です。`);
+            }
+            if (!Array.isArray(q.sequence.items) || q.sequence.items.length === 0) {
+              throw new Error(`「${g.unit}」の並べ替え問題 #${i + 1} の sequence.items 配列が必要です。`);
+            }
+            for (let itemIdx = 0; itemIdx < q.sequence.items.length; itemIdx++) {
+              const item = q.sequence.items[itemIdx];
+              if (!item || !item.id || !item.text) {
+                throw new Error(`「${g.unit}」の並べ替え問題 #${i + 1} の items[${itemIdx}] に id と text が必要です。`);
+              }
+            }
+            if (!Array.isArray(q.sequence.correctOrder) || q.sequence.correctOrder.length === 0) {
+              throw new Error(`「${g.unit}」の並べ替え問題 #${i + 1} の sequence.correctOrder 配列が必要です。`);
+            }
+          }
+
+          if (format === 'data_analysis') {
+            if (!q.dataTable || typeof q.dataTable !== 'object') {
+              throw new Error(`「${g.unit}」の資料問題 #${i + 1} に dataTable オブジェクトが必要です。`);
+            }
+            if (!Array.isArray(q.dataTable.columns) || q.dataTable.columns.length === 0) {
+              throw new Error(`「${g.unit}」の資料問題 #${i + 1} の dataTable.columns 配列が必要です。`);
+            }
+            if (!Array.isArray(q.dataTable.rows)) {
+              throw new Error(`「${g.unit}」の資料問題 #${i + 1} の dataTable.rows 配列が必要です。`);
+            }
+          }
+
+          // typeの正規化（未指定時は [swipe, choice, writing]、sequenceは choice のみ）
+          let parsedTypes: QuestionStudyType[] = [];
+          if (!q.type) {
+            parsedTypes = format === 'sequence'
+              ? ['multiple_choice']
+              : ['swipe', 'multiple_choice', 'written'];
+          } else {
+            const rawTypes: string[] = Array.isArray(q.type) ? q.type : [q.type];
+            const mapped = rawTypes.map((t) => {
+              if (t === 'choice') return 'multiple_choice';
+              if (t === 'writing') return 'written';
+              return t as QuestionStudyType;
+            }).filter((t): t is QuestionStudyType =>
+              ['swipe', 'multiple_choice', 'written'].includes(t)
+            );
+
+            if (format === 'sequence') {
+              parsedTypes = ['multiple_choice'];
+            } else {
+              parsedTypes = mapped.length > 0 ? mapped : ['swipe', 'multiple_choice', 'written'];
+            }
+          }
+
+          // choicesの決定
+          let choices = Array.isArray(q.choices) && q.choices.length > 0 ? q.choices : [q.answer];
+          if (format === 'sequence' && (!q.choices || q.choices.length === 0)) {
+            choices = q.sequence.items.map((it: any) => it.text);
+          }
+
           return {
             id: q.id || `${g.subject.slice(0, 2)}-${Date.now()}-${gIdx}-${i}`,
             subject: g.subject,
             unit: g.unit,
             question: q.question,
             answer: q.answer,
-            choices: Array.isArray(q.choices) && q.choices.length > 0 ? q.choices : [q.answer],
+            choices,
             explanation: q.explanation || '',
             keywords: Array.isArray(q.keywords) ? q.keywords : [],
-            type: (q.type as QuestionStudyType[]) || ['swipe', 'multiple_choice', 'written'],
+            type: parsedTypes,
+            format,
+            calculation: format === 'calculation' ? q.calculation : undefined,
+            sequence: format === 'sequence' ? q.sequence : undefined,
+            dataTable: format === 'data_analysis' ? q.dataTable : (q.dataTable || undefined),
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
@@ -419,8 +545,24 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                         </div>
                         <div className="space-y-1 pl-1">
                           {group.questions.map((q, qIdx) => (
-                            <div key={qIdx} className="text-[11px] text-slate-600 dark:text-slate-300">
-                              ・{q.question} <span className="text-blue-600 font-semibold">(答: {q.answer})</span>
+                            <div key={qIdx} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
+                              {q.format === 'calculation' && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
+                                  計算
+                                </span>
+                              )}
+                              {q.format === 'sequence' && (
+                                <span className="px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 text-[10px] font-bold">
+                                  並替
+                                </span>
+                              )}
+                              {q.format === 'data_analysis' && (
+                                <span className="px-1.5 py-0.2 rounded bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 text-[10px] font-bold">
+                                  資料
+                                </span>
+                              )}
+                              <span>・{q.question}</span>
+                              <span className="text-blue-600 font-semibold">(答: {q.answer})</span>
                             </div>
                           ))}
                         </div>

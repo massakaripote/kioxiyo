@@ -13,7 +13,7 @@ import {
   submitReport,
 } from '@/services/firebase';
 import type { SharedProblemSet, CurrentAffairPost } from '@/types/share';
-import type { SubjectType, Question } from '@/types/database';
+import type { SubjectType, Question, Unit } from '@/types/database';
 import { db as localDb } from '@/db';
 import {
   X,
@@ -61,13 +61,31 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   const [unlistedIdInput, setUnlistedIdInput] = useState('');
   const [isPostingSet, setIsPostingSet] = useState(false);
   const [myLocalQuestions, setMyLocalQuestions] = useState<Question[]>([]);
+  const [myLocalUnits, setMyLocalUnits] = useState<Unit[]>([]);
 
   // 投稿フォーム
-  const [postTitle, setPostTitle] = useState('');
   const [postDesc, setPostDesc] = useState('');
   const [postSubject, setPostSubject] = useState<SubjectType>('歴史');
   const [postUnit, setPostUnit] = useState('');
   const [postIsPublic, setPostIsPublic] = useState(true);
+
+  // 選択中の教科に属する端末内の単元一覧
+  const availableUnitsForSubject = React.useMemo(() => {
+    const fromUnits = myLocalUnits.filter((u) => u.subject === postSubject).map((u) => u.name);
+    const fromQuestions = myLocalQuestions.filter((q) => q.subject === postSubject).map((q) => q.unit);
+    return Array.from(new Set([...fromUnits, ...fromQuestions])).filter(Boolean);
+  }, [myLocalUnits, myLocalQuestions, postSubject]);
+
+  // 教科が変更されたとき、利用可能な単元があれば先頭を選択、なければ空文字
+  useEffect(() => {
+    if (availableUnitsForSubject.length > 0) {
+      if (!availableUnitsForSubject.includes(postUnit)) {
+        setPostUnit(availableUnitsForSubject[0]);
+      }
+    } else {
+      setPostUnit('');
+    }
+  }, [postSubject, availableUnitsForSubject]);
 
   // 時事問題
   const [currentAffairs, setCurrentAffairs] = useState<CurrentAffairPost[]>([]);
@@ -99,6 +117,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
     loadData();
     localDb.questions.toArray().then((qs) => setMyLocalQuestions(qs));
+    localDb.units.toArray().then((us) => setMyLocalUnits(us));
   }, [isOpen, activeTab, selectedSubject, affairOrder]);
 
   const loadData = async () => {
@@ -157,22 +176,27 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
       alert('匿名認証の準備ができていません。');
       return;
     }
+    if (!postUnit) {
+      alert('共有する単元を選択してください。');
+      return;
+    }
+
     const questionsToPost = myLocalQuestions.filter(
-      (q) => q.subject === postSubject && (!postUnit || q.unit === postUnit)
+      (q) => q.subject === postSubject && q.unit === postUnit
     );
 
     if (questionsToPost.length === 0) {
-      alert('投稿対象となる問題が端末内にありません。');
+      alert(`選択した単元「${postUnit}」に登録されている問題が端末内にありません。`);
       return;
     }
 
     try {
       const id = await publishProblemSet(
         {
-          title: postTitle.trim(),
+          title: postUnit,
           description: postDesc.trim(),
           subject: postSubject,
-          unit: postUnit || '全般',
+          unit: postUnit,
           questions: questionsToPost,
           authorName: '匿名',
           isPublic: postIsPublic,
@@ -182,11 +206,10 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
       setNotice(
         postIsPublic
-          ? '一般公開で問題集を投稿しました！'
-          : `URL限定公開で投稿しました（ID: ${id}）`
+          ? `「${postUnit}」の問題集（${questionsToPost.length}問）を一般公開で共有しました！`
+          : `「${postUnit}」の問題集（${questionsToPost.length}問）をURL限定公開で共有しました（ID: ${id}）`
       );
       setIsPostingSet(false);
-      setPostTitle('');
       setPostDesc('');
       loadData();
     } catch (err: any) {
@@ -373,14 +396,6 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                       作成した問題集を共有
                     </h5>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={postTitle}
-                        onChange={(e) => setPostTitle(e.target.value)}
-                        placeholder="問題集のタイトル (例: 定期テスト直前対策)"
-                        required
-                        className="px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
-                      />
                       <select
                         value={postSubject}
                         onChange={(e) => setPostSubject(e.target.value as SubjectType)}
@@ -390,6 +405,27 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                         <option value="地理">地理</option>
                         <option value="公共">公共</option>
                         <option value="地学">地学</option>
+                      </select>
+                      <select
+                        value={postUnit}
+                        onChange={(e) => setPostUnit(e.target.value)}
+                        required
+                        className="px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-bold"
+                      >
+                        {availableUnitsForSubject.length === 0 ? (
+                          <option value="">単元がありません</option>
+                        ) : (
+                          availableUnitsForSubject.map((u) => {
+                            const count = myLocalQuestions.filter(
+                              (q) => q.subject === postSubject && q.unit === u
+                            ).length;
+                            return (
+                              <option key={u} value={u}>
+                                {u} ({count}問)
+                              </option>
+                            );
+                          })
+                        )}
                       </select>
                     </div>
                     <textarea

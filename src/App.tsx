@@ -185,6 +185,14 @@ export function App() {
     }
   };
 
+  // 前の問題に戻る
+  const handlePrevQuestion = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      setStudyResults((prev) => prev.slice(0, -1));
+    }
+  };
+
   // お気に入り切り替え
   const handleToggleFavorite = async (questionId: string) => {
     const q = await db.questions.get(questionId);
@@ -351,6 +359,7 @@ export function App() {
             isSwipeReversed={settings.isSwipeReversed}
             onToggleReverse={() => setIsSwipeReversed(!settings.isSwipeReversed)}
             onAnswer={handleQuestionAnswer}
+            onPrev={handlePrevQuestion}
             onToggleFavorite={handleToggleFavorite}
             onExit={() => {
               setCurrentView('home');
@@ -367,6 +376,7 @@ export function App() {
             isSwipeReversed={settings.isSwipeReversed}
             onToggleReverse={() => setIsSwipeReversed(!settings.isSwipeReversed)}
             onAnswer={handleQuestionAnswer}
+            onPrev={handlePrevQuestion}
             onToggleFavorite={handleToggleFavorite}
             onExit={() => {
               setCurrentView('home');
@@ -381,6 +391,7 @@ export function App() {
             questions={studyQuestions}
             currentIndex={currentIndex}
             onAnswer={handleQuestionAnswer}
+            onPrev={handlePrevQuestion}
             onToggleFavorite={handleToggleFavorite}
             onExit={() => {
               setCurrentView('home');

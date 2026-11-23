@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import type { Question } from '@/types/database';
 import { RotateCcw, Home, ArrowRight, Award, CheckCircle2, XCircle } from 'lucide-react';
+import { CalculationExplanation } from './CalculationExplanation';
 
 export interface AnswerResultItem {
   question: Question;
@@ -143,6 +144,9 @@ export const ResultView: React.FC<ResultViewProps> = ({
                   <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 border-t border-slate-200 dark:border-slate-700/60 pt-1">
                     {item.question.explanation}
                   </p>
+                )}
+                {item.question.calculation && (
+                  <CalculationExplanation calculation={item.question.calculation} className="mt-2" />
                 )}
               </div>
             ))}

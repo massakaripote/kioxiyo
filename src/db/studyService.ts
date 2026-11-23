@@ -21,17 +21,41 @@ export async function initializeDatabase(): Promise<void> {
 
 /**
  * 初期問題・単元データを最新のコード定義から差分同期（スマートリロード）する
- * 学習履歴や獲得ポイント、マスター状態は維持したまま、問題文や選択肢の更新、新規問題の追加のみ反映します。
+ * 学習履歴や獲得ポイント、マスター状態は維持したまま、問題文や選択肢の更新、新規問題の追加、
+ * そしてコード側で削除された問題・単元のクリーンアップ（削除方向の差分）を反映します。
  */
 export async function reloadInitialData(): Promise<void> {
   await db.transaction('rw', db.questions, db.units, db.masteryStats, async () => {
-    // 1. 単元データを最新化（追加・更新）
+    const latestQuestionIds = new Set(INITIAL_QUESTIONS.map((q) => q.id));
+    const latestUnitIds = new Set(INITIAL_UNITS.map((u) => u.id));
+
+    // 1. コード側から削除された問題と単元を検出し、削除する
+    const currentQuestions = await db.questions.toArray();
+    const removedQuestionIds = currentQuestions
+      .filter((q) => !latestQuestionIds.has(q.id))
+      .map((q) => q.id);
+
+    if (removedQuestionIds.length > 0) {
+      await db.questions.bulkDelete(removedQuestionIds);
+      await db.masteryStats.bulkDelete(removedQuestionIds);
+    }
+
+    const currentUnits = await db.units.toArray();
+    const removedUnitIds = currentUnits
+      .filter((u) => !latestUnitIds.has(u.id))
+      .map((u) => u.id);
+
+    if (removedUnitIds.length > 0) {
+      await db.units.bulkDelete(removedUnitIds);
+    }
+
+    // 2. 単元データを最新化（追加・更新）
     await db.units.bulkPut(INITIAL_UNITS);
 
-    // 2. 問題データを最新化（問題文・解説・選択肢などを上書き更新、新規IDなら追加）
+    // 3. 問題データを最新化（問題文・解説・選択肢などを上書き更新、新規IDなら追加）
     await db.questions.bulkPut(INITIAL_QUESTIONS);
 
-    // 3. 既存の習得ステータスを取得し、まだステータスが存在しない「新規問題」のみ初期レコードを追加
+    // 4. 既存の習得ステータスを取得し、まだステータスが存在しない「新規問題」のみ初期レコードを追加
     const existingStats = await db.masteryStats.toArray();
     const existingStatIds = new Set(existingStats.map((s) => s.questionId));
 
@@ -158,7 +182,13 @@ export async function getQuestionsForStudy(params: {
   }
 
   // 出題形式フィルタ（問題がその出題形式をサポートしているか）
-  questions = questions.filter((q) => q.type.includes(studyType));
+  questions = questions.filter((q) => {
+    // sequence形式（並べ替え）の問題は choice(multiple_choice) 形式でのみ表示し、swipeやwrittenでは表示しない
+    if (q.format === 'sequence' && studyType !== 'multiple_choice') {
+      return false;
+    }
+    return q.type.includes(studyType);
+  });
 
   // 統計情報の取得
   const statsList = await db.masteryStats.where('questionId').anyOf(questions.map((q) => q.id)).toArray();

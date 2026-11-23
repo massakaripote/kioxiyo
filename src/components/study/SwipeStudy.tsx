@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, type PanInfo } from 'framer-motion';
 import type { Question } from '@/types/database';
 import { Star, AlertCircle, ArrowLeft, ArrowRight, Check, X, Undo2 } from 'lucide-react';
+import { DataTableDisplay } from './DataTableDisplay';
+import { CalculationExplanation } from './CalculationExplanation';
 
 interface SwipeStudyProps {
   questions: Question[];
@@ -9,6 +11,7 @@ interface SwipeStudyProps {
   isSwipeReversed: boolean;
   onToggleReverse: () => void;
   onAnswer: (confidence: boolean, isCorrect: boolean) => void;
+  onPrev?: () => void;
   onToggleFavorite: (questionId: string) => void;
   onExit: () => void;
 }
@@ -19,6 +22,7 @@ export const SwipeStudy: React.FC<SwipeStudyProps> = ({
   isSwipeReversed,
   onToggleReverse,
   onAnswer,
+  onPrev,
   onToggleFavorite,
   onExit,
 }) => {
@@ -95,11 +99,17 @@ export const SwipeStudy: React.FC<SwipeStudyProps> = ({
       {/* 上部ステータスバー */}
       <div className="w-full flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-500 mb-1 sm:mb-2 px-3 sm:px-0">
         <button
-          onClick={onExit}
-          className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200"
+          onClick={onPrev}
+          disabled={currentIndex === 0}
+          className={`flex items-center gap-1 transition ${
+            currentIndex === 0
+              ? 'opacity-30 cursor-not-allowed text-slate-400'
+              : 'hover:text-slate-800 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400'
+          }`}
+          title="前の問題に戻る"
         >
-          <Undo2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>中断</span>
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span>前へ</span>
         </button>
         <span className="font-mono text-sm sm:text-base font-bold text-slate-800 dark:text-slate-200">
           {currentIndex + 1} / {questions.length}
@@ -154,6 +164,11 @@ export const SwipeStudy: React.FC<SwipeStudyProps> = ({
                 ID: {currentQuestion.id}
               </div>
             </div>
+
+            {/* 資料・表（data_analysis形式など） */}
+            {currentQuestion.dataTable && (
+              <DataTableDisplay dataTable={currentQuestion.dataTable} />
+            )}
           </div>
 
           {/* 正解・解説エリア（回答後ステップ） */}
@@ -171,6 +186,10 @@ export const SwipeStudy: React.FC<SwipeStudyProps> = ({
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-200 dark:border-slate-700 pt-1.5 sm:pt-2 max-h-32 overflow-y-auto">
                   {currentQuestion.explanation}
                 </p>
+              )}
+              {/* 計算過程・公式表示 */}
+              {currentQuestion.calculation && (
+                <CalculationExplanation calculation={currentQuestion.calculation} />
               )}
             </motion.div>
           ) : (
@@ -197,17 +216,30 @@ export const SwipeStudy: React.FC<SwipeStudyProps> = ({
         </button>
       </div>
 
-      {/* 下部設定：左右反転（参考画像に描かれていたチェックボックス） */}
-      <div className="w-full flex items-center justify-center gap-4 py-1 sm:py-2 shrink-0">
-        <label className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={isSwipeReversed}
-            onChange={onToggleReverse}
-            className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-          />
-          <span>左右反転（利き手・配置切り替え）</span>
-        </label>
+      {/* 下部設定：中断（左） & 左右反転（中央） */}
+      <div className="w-full relative flex items-center justify-between py-1.5 sm:py-2 shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-3 sm:px-0">
+        <button
+          onClick={onExit}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition z-10"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+          <span>中断</span>
+        </button>
+
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto">
+          <label className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isSwipeReversed}
+              onChange={onToggleReverse}
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+            />
+            <span>左右反転（配置切替）</span>
+          </label>
+        </div>
+
+        {/* 右側のスペーサー */}
+        <div className="w-16" />
       </div>
     </div>
   );

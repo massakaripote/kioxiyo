@@ -1,19 +1,35 @@
 import React, { useState } from 'react';
 import type { Question } from '@/types/database';
-import { Star, Undo2, ArrowRight, Check, X } from 'lucide-react';
+import { Star, Undo2, ArrowRight, ArrowLeft, Check, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { DataTableDisplay } from './DataTableDisplay';
+import { CalculationExplanation } from './CalculationExplanation';
 
 interface WrittenStudyProps {
   questions: Question[];
   currentIndex: number;
   onAnswer: (confidence: boolean, isCorrect: boolean, userAnswer: string) => void;
+  onPrev?: () => void;
   onToggleFavorite: (questionId: string) => void;
   onExit: () => void;
+}
+
+/**
+ * 全角英数字・記号を半角に変換し、空白を正規化する
+ */
+function normalizeNumericInput(str: string): string {
+  return str
+    .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
+    .replace(/．/g, '.')
+    .replace(/[ー−―–]/g, '-')
+    .replace(/[＋]/g, '+')
+    .trim();
 }
 
 export const WrittenStudy: React.FC<WrittenStudyProps> = ({
   questions,
   currentIndex,
   onAnswer,
+  onPrev,
   onToggleFavorite,
   onExit,
 }) => {
@@ -22,6 +38,27 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
   const [showAnswer, setShowAnswer] = useState(false);
 
   if (!currentQuestion) return null;
+
+  const isCalculation = currentQuestion.format === 'calculation' && !!currentQuestion.calculation;
+
+  // 計算問題の数値採点（tolerance による判定）
+  const calcResult = isCalculation && currentQuestion.calculation
+    ? (() => {
+        const normalized = normalizeNumericInput(userText);
+        const match = normalized.match(/[-+]?[0-9]*\.?[0-9]+/);
+        if (!match) return { isCorrect: false, parsedNum: null };
+        const userNum = parseFloat(match[0]);
+        if (isNaN(userNum)) return { isCorrect: false, parsedNum: null };
+        const diff = Math.abs(userNum - currentQuestion.calculation.numericAnswer);
+        const tolerance = currentQuestion.calculation.tolerance ?? 0;
+        return {
+          isCorrect: diff <= tolerance,
+          parsedNum: userNum,
+          diff,
+          tolerance,
+        };
+      })()
+    : null;
 
   const handleSubmitText = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,11 +76,17 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
       {/* 上部ステータスバー */}
       <div className="w-full flex items-center justify-between text-sm font-semibold text-slate-500 mb-2">
         <button
-          onClick={onExit}
-          className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200"
+          onClick={onPrev}
+          disabled={currentIndex === 0}
+          className={`flex items-center gap-1 transition ${
+            currentIndex === 0
+              ? 'opacity-30 cursor-not-allowed text-slate-400'
+              : 'hover:text-slate-800 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400'
+          }`}
+          title="前の問題に戻る"
         >
-          <Undo2 className="w-4 h-4" />
-          <span>中断</span>
+          <ArrowLeft className="w-4 h-4" />
+          <span>前へ</span>
         </button>
         <span className="font-mono text-base font-bold text-slate-800 dark:text-slate-200">
           {currentIndex + 1} / {questions.length}
@@ -75,6 +118,11 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
         <div className="mt-1.5 text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500">
           ID: {currentQuestion.id}
         </div>
+
+        {/* 資料・表（data_analysis形式など） */}
+        {currentQuestion.dataTable && (
+          <DataTableDisplay dataTable={currentQuestion.dataTable} />
+        )}
       </div>
 
       {/* 入力エリア または 採点エリア */}
@@ -85,7 +133,11 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
               rows={3}
               value={userText}
               onChange={(e) => setUserText(e.target.value)}
-              placeholder="ここに回答を入力してください（思い出せない場合は空欄で解答表示）"
+              placeholder={
+                isCalculation
+                  ? `数値を入力してください${currentQuestion.calculation?.unit ? `（単位: ${currentQuestion.calculation.unit}）` : ''}`
+                  : 'ここに回答を入力してください（思い出せない場合は空欄で解答表示）'
+              }
               className="w-full p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none shadow-inner"
               autoFocus
             />
@@ -102,10 +154,43 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
           <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
             <div>
               <div className="text-xs font-bold text-slate-400 mb-1">あなたの回答:</div>
-              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium text-sm text-slate-800 dark:text-slate-200">
-                {userText.trim() ? userText : '（未入力）'}
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium text-sm text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                <span>{userText.trim() ? userText : '（未入力）'}</span>
+                {calcResult && (
+                  <span className="text-xs font-mono text-slate-500">
+                    （抽出数値: {calcResult.parsedNum !== null ? calcResult.parsedNum : 'なし'}）
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* 計算問題の数値正誤判定アシスト */}
+            {calcResult && (
+              <div
+                className={`p-3 rounded-2xl border text-xs flex items-center gap-2 ${
+                  calcResult.isCorrect
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                }`}
+              >
+                {calcResult.isCorrect ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                )}
+                <div>
+                  <span className="font-extrabold">
+                    {calcResult.isCorrect ? '数値判定: 正解！' : '数値判定: 不正解（範囲外）'}
+                  </span>
+                  <span className="ml-1 opacity-90">
+                    正解値: {currentQuestion.calculation?.numericAnswer}
+                    {currentQuestion.calculation?.tolerance
+                      ? ` (許容誤差 ±${currentQuestion.calculation.tolerance})`
+                      : ''}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="text-xs font-bold text-slate-400 mb-1">模範解答:</div>
@@ -134,6 +219,11 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800 pt-2 leading-relaxed">
                 {currentQuestion.explanation}
               </p>
+            )}
+
+            {/* 計算過程・公式 */}
+            {currentQuestion.calculation && (
+              <CalculationExplanation calculation={currentQuestion.calculation} />
             )}
 
             {/* 自己判定ボタン（自信あり・なし × 正解・不正解） */}
@@ -171,8 +261,19 @@ export const WrittenStudy: React.FC<WrittenStudyProps> = ({
         )}
       </div>
 
-      <div className="text-center text-xs text-slate-400 py-1">
-        ※ 記述式は自己判定で行われます（AIによる自動判定は行いません）
+      {/* 画面下部フッター：中断（左） & 注記（右） */}
+      <div className="w-full flex items-center justify-between gap-4 py-2 mt-auto border-t border-slate-100 dark:border-slate-800/60">
+        <button
+          onClick={onExit}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition shrink-0"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+          <span>中断</span>
+        </button>
+
+        <div className="text-xs text-slate-400">
+          ※ 記述式は自己判定で行われます
+        </div>
       </div>
     </div>
   );

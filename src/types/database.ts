@@ -4,6 +4,31 @@ export const SUBJECTS: SubjectType[] = ['地理', '歴史', '公共', '地学'];
 
 export type QuestionStudyType = 'swipe' | 'multiple_choice' | 'written';
 
+export type QuestionFormat = 'knowledge' | 'calculation' | 'sequence' | 'data_analysis';
+
+export interface CalculationData {
+  numericAnswer: number;
+  unit?: string;
+  tolerance: number;
+  formula?: string;
+  steps?: string[];
+}
+
+export interface SequenceItem {
+  id: string;
+  text: string;
+}
+
+export interface SequenceData {
+  items: SequenceItem[];
+  correctOrder: string[];
+}
+
+export interface DataTableData {
+  columns: string[];
+  rows: (string | number)[][];
+}
+
 export type StudyMode = 'all' | 'random' | 'review' | 'unseen' | 'favorite' | 'weak';
 
 export interface Question {
@@ -16,6 +41,10 @@ export interface Question {
   explanation?: string;
   keywords?: string[];
   type: QuestionStudyType[];
+  format?: QuestionFormat;
+  calculation?: CalculationData;
+  sequence?: SequenceData;
+  dataTable?: DataTableData;
   isFavorite?: boolean;
   isWeakManual?: boolean;
   createdAt: number;
